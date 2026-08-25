@@ -1,0 +1,98 @@
+{
+  "entities": {
+    "UserProfile": {
+      "collection": "users",
+      "fields": {
+        "id": { "type": "string", "description": "User ID matching Firebase Auth UID" },
+        "name": { "type": "string", "description": "Full name of the learner" },
+        "email": { "type": "string", "description": "Email address" },
+        "education": { "type": "string", "description": "Educational background" },
+        "careerGoal": { "type": "string", "description": "Selected career path (e.g., AI/ML Engineer)" },
+        "targetRole": { "type": "string", "description": "Specific target job role" },
+        "experienceLevel": { "type": "string", "description": "Beginner, Intermediate, or Advanced" },
+        "interests": { "type": "array", "description": "List of focus topics" },
+        "skills": { "type": "array", "description": "Array of skill proficiency objects" },
+        "weeklyHours": { "type": "number", "description": "Committed weekly study hours" },
+        "preferredLearningStyle": { "type": "string", "description": "Preferred learning modality" },
+        "preferredDifficulty": { "type": "string", "description": "Difficulty pace" },
+        "streakDays": { "type": "number", "description": "Current active learning streak in days" },
+        "lastActive": { "type": "string", "description": "ISO date string of last active date" },
+        "joinedDate": { "type": "string", "description": "Date user registered" }
+      }
+    },
+    "RoadmapPhase": {
+      "collection": "users/{userId}/roadmapPhases",
+      "fields": {
+        "id": { "type": "string", "description": "Phase ID" },
+        "phaseNumber": { "type": "number", "description": "Sequential order number" },
+        "title": { "type": "string", "description": "Phase title" },
+        "tagline": { "type": "string", "description": "Phase sub-headline" },
+        "status": { "type": "string", "description": "completed, in_progress, unlocked, or locked" },
+        "progress": { "type": "number", "description": "Completion percentage (0-100)" },
+        "estimatedDuration": { "type": "string", "description": "Estimated time to complete" },
+        "prerequisites": { "type": "array", "description": "Prerequisite skills" },
+        "skills": { "type": "array", "description": "Skills taught in phase" },
+        "courses": { "type": "array", "description": "Array of course items and completion state" },
+        "projects": { "type": "array", "description": "Array of project items and completion state" },
+        "assessmentRequired": { "type": "string", "description": "Title of required assessment" },
+        "isAssessmentPassed": { "type": "boolean", "description": "Whether phase gateway assessment is passed" },
+        "whyThisPhase": { "type": "string", "description": "Pedagogical justification" }
+      }
+    },
+    "Recommendation": {
+      "collection": "users/{userId}/recommendations",
+      "fields": {
+        "id": { "type": "string", "description": "Recommendation ID" },
+        "title": { "type": "string", "description": "Item title" },
+        "type": { "type": "string", "description": "Course, Project, Assessment, or Practice" },
+        "provider": { "type": "string", "description": "Content provider" },
+        "description": { "type": "string", "description": "Detailed summary" },
+        "matchPercentage": { "type": "number", "description": "AI recommendation fit score" },
+        "difficulty": { "type": "string", "description": "Difficulty level" },
+        "estimatedDuration": { "type": "string", "description": "Estimated duration" },
+        "skillsCovered": { "type": "array", "description": "Target skills" },
+        "whyRecommended": { "type": "string", "description": "AI context rationale" },
+        "status": { "type": "string", "description": "recommended, in_progress, completed" },
+        "isSaved": { "type": "boolean", "description": "Flag if bookmarked" }
+      }
+    },
+    "AssessmentResult": {
+      "collection": "users/{userId}/assessmentResults",
+      "fields": {
+        "id": { "type": "string", "description": "Result ID" },
+        "assessmentId": { "type": "string", "description": "Reference to assessment module" },
+        "title": { "type": "string", "description": "Assessment title" },
+        "score": { "type": "number", "description": "Score percentage 0-100" },
+        "passed": { "type": "boolean", "description": "Whether passing threshold was met" },
+        "date": { "type": "string", "description": "Completion date" },
+        "totalQuestions": { "type": "number", "description": "Total question count" },
+        "correctCount": { "type": "number", "description": "Number of correct answers" },
+        "masteryLevel": { "type": "string", "description": "Novice, Developing, Proficient, Master" },
+        "strongAreas": { "type": "array", "description": "Skills mastered" },
+        "weakAreas": { "type": "array", "description": "Skills requiring review" },
+        "recommendedNextAction": { "type": "string", "description": "Actionable next step" }
+      }
+    },
+    "ActivityLog": {
+      "collection": "users/{userId}/activities",
+      "fields": {
+        "id": { "type": "string", "description": "Activity log ID" },
+        "type": { "type": "string", "description": "Activity category" },
+        "title": { "type": "string", "description": "Action summary" },
+        "description": { "type": "string", "description": "Details" },
+        "timestamp": { "type": "string", "description": "Timestamp string" },
+        "iconType": { "type": "string", "description": "Icon descriptor" },
+        "phase": { "type": "string", "description": "Associated phase name" }
+      }
+    },
+    "ChatMessage": {
+      "collection": "users/{userId}/chatMessages",
+      "fields": {
+        "id": { "type": "string", "description": "Message ID" },
+        "sender": { "type": "string", "description": "user or assistant" },
+        "text": { "type": "string", "description": "Message content" },
+        "timestamp": { "type": "string", "description": "Time string" }
+      }
+    }
+  }
+}

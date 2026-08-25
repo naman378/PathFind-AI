@@ -1,0 +1,6 @@
+{
+  "name": "PathFind AI",
+  "description": "AI-powered personalized learning path recommender turning career goals into structured roadmaps, skill gap analysis, and adaptive recommendations.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
