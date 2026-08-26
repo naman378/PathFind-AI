@@ -167,5 +167,8 @@ export function analyzeSkillGaps(profile: LearnerProfile): SkillGapAnalysisResul
     gapSkills,
     missingSkills,
     overallReadinessScore,
+    masteredCount: masteredSkills.length,
+    developingCount: developingSkills.length,
+    gapCount: gapSkills.length + missingSkills.length,
   };
 }

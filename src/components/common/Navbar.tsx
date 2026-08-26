@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { PageType } from '../../types';
+import { UserAvatar } from './UserAvatar';
 import {
   Menu,
   Sparkles,
@@ -146,17 +147,28 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenMobileMenu }) => {
               <span className="hidden sm:inline text-xs font-medium text-slate-200 group-hover:text-white max-w-[100px] truncate">
                 {displayName}
               </span>
-              <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-indigo-500 to-purple-600 text-white font-bold text-xs flex items-center justify-center shadow-sm">
-                {initial}
-              </div>
+              <UserAvatar
+                name={displayName}
+                avatarUrl={profile.avatarUrl}
+                googlePhotoUrl={firebaseUser?.photoURL}
+                size="sm"
+              />
               <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${isProfileMenuOpen ? 'rotate-180' : ''}`} />
             </button>
 
             {isProfileMenuOpen && (
               <div className="absolute right-0 mt-2 w-56 rounded-2xl bg-[#090f1f] border border-slate-800 shadow-2xl py-2 z-50 animate-in fade-in-50 duration-150">
-                <div className="px-4 py-2.5 border-b border-slate-800/80">
-                  <p className="text-xs font-bold text-white truncate">{displayName}</p>
-                  <p className="text-[11px] text-slate-400 truncate">{firebaseUser?.email || profile.email}</p>
+                <div className="px-4 py-2.5 border-b border-slate-800/80 flex items-center gap-3">
+                  <UserAvatar
+                    name={displayName}
+                    avatarUrl={profile.avatarUrl}
+                    googlePhotoUrl={firebaseUser?.photoURL}
+                    size="sm"
+                  />
+                  <div className="overflow-hidden">
+                    <p className="text-xs font-bold text-white truncate">{displayName}</p>
+                    <p className="text-[11px] text-slate-400 truncate">{firebaseUser?.email || profile.email}</p>
+                  </div>
                 </div>
 
                 <div className="py-1">

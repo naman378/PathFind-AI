@@ -810,8 +810,10 @@ export function calculateNextBestAction(
     const learnerSkill = profile.skills.find((s) => s.name.toLowerCase() === primarySkill.toLowerCase());
     const profText = learnerSkill ? `${learnerSkill.proficiency}%` : 'in development';
 
+    const whyText = `You are currently ${inProgressCourse.progress}% through this module. Completing it directly targets your ${primarySkill} skill gap (current proficiency: ${profText}) in Phase ${activePhase.phaseNumber}.`;
     return {
       id: inProgressCourse.id,
+      targetId: inProgressCourse.id,
       title: inProgressCourse.title,
       type: 'Course',
       phaseId: activePhase.id,
@@ -819,9 +821,13 @@ export function calculateNextBestAction(
       phaseTitle: activePhase.title,
       skill: primarySkill,
       skillsCovered: inProgressCourse.skillsCovered,
+      skillsTargeted: inProgressCourse.skillsCovered,
       estimatedDuration: inProgressCourse.duration,
       durationHours: parseInt(inProgressCourse.duration) || 8,
-      whyThisIsNext: `You are currently ${inProgressCourse.progress}% through this module. Completing it directly targets your ${primarySkill} skill gap (current proficiency: ${profText}) in Phase ${activePhase.phaseNumber}.`,
+      difficulty: inProgressCourse.difficulty || 'Intermediate',
+      description: inProgressCourse.description || 'Target course in your active roadmap phase.',
+      whyThisIsNext: whyText,
+      whyThisAction: whyText,
       matchPercentage: 98,
       status: 'in_progress',
       progress: inProgressCourse.progress,
@@ -833,8 +839,10 @@ export function calculateNextBestAction(
   if (activePhase.practiceItems) {
     const inProgressPractice = activePhase.practiceItems.find((pr) => pr.status === 'in_progress');
     if (inProgressPractice) {
+      const whyText = `Resume this hands-on lab (${inProgressPractice.progress}% complete) to reinforce theoretical concepts from Phase ${activePhase.phaseNumber}.`;
       return {
         id: inProgressPractice.id,
+        targetId: inProgressPractice.id,
         title: inProgressPractice.title,
         type: 'Practice',
         phaseId: activePhase.id,
@@ -842,9 +850,13 @@ export function calculateNextBestAction(
         phaseTitle: activePhase.title,
         skill: inProgressPractice.skills[0] || 'Practical Lab',
         skillsCovered: inProgressPractice.skills,
+        skillsTargeted: inProgressPractice.skills,
         estimatedDuration: inProgressPractice.estimatedHours,
         durationHours: inProgressPractice.durationHours,
-        whyThisIsNext: `Resume this hands-on lab (${inProgressPractice.progress}% complete) to reinforce theoretical concepts from Phase ${activePhase.phaseNumber}.`,
+        difficulty: 'Intermediate',
+        description: inProgressPractice.description || 'Interactive hands-on coding practice challenge.',
+        whyThisIsNext: whyText,
+        whyThisAction: whyText,
         matchPercentage: 95,
         status: 'in_progress',
         progress: inProgressPractice.progress,
@@ -856,8 +868,10 @@ export function calculateNextBestAction(
   const inProgressProject = activePhase.projects.find((p) => p.status === 'in_progress');
   if (inProgressProject) {
     const primarySkill = inProgressProject.skillsCovered[0] || 'Applied Engineering';
+    const whyText = `Resume your portfolio project (${inProgressProject.progress}% complete). Submitting these deliverables is required to complete Phase ${activePhase.phaseNumber}.`;
     return {
       id: inProgressProject.id,
+      targetId: inProgressProject.id,
       title: inProgressProject.title,
       type: 'Project',
       phaseId: activePhase.id,
@@ -865,9 +879,13 @@ export function calculateNextBestAction(
       phaseTitle: activePhase.title,
       skill: primarySkill,
       skillsCovered: inProgressProject.skillsCovered,
+      skillsTargeted: inProgressProject.skillsCovered,
       estimatedDuration: inProgressProject.duration,
       durationHours: parseInt(inProgressProject.duration) || 10,
-      whyThisIsNext: `Resume your portfolio project (${inProgressProject.progress}% complete). Submitting these deliverables is required to complete Phase ${activePhase.phaseNumber}.`,
+      difficulty: inProgressProject.difficulty || 'Intermediate',
+      description: inProgressProject.description || 'Deliverable milestone project for phase certification.',
+      whyThisIsNext: whyText,
+      whyThisAction: whyText,
       matchPercentage: 96,
       status: 'in_progress',
       progress: inProgressProject.progress,
@@ -892,6 +910,7 @@ export function calculateNextBestAction(
 
     return {
       id: nextUnlockedCourse.id,
+      targetId: nextUnlockedCourse.id,
       title: nextUnlockedCourse.title,
       type: 'Course',
       phaseId: activePhase.id,
@@ -899,9 +918,13 @@ export function calculateNextBestAction(
       phaseTitle: activePhase.title,
       skill: matchingSkill,
       skillsCovered: nextUnlockedCourse.skillsCovered,
+      skillsTargeted: nextUnlockedCourse.skillsCovered,
       estimatedDuration: nextUnlockedCourse.duration,
       durationHours: parseInt(nextUnlockedCourse.duration) || 8,
+      difficulty: nextUnlockedCourse.difficulty || 'Intermediate',
+      description: nextUnlockedCourse.description || 'Core curriculum course for active roadmap phase.',
       whyThisIsNext: reason,
+      whyThisAction: reason,
       matchPercentage: 94,
       status: 'not_started',
       progress: 0,
@@ -913,8 +936,10 @@ export function calculateNextBestAction(
   if (activePhase.practiceItems) {
     const nextPractice = activePhase.practiceItems.find((pr) => pr.status !== 'completed' && !pr.isLocked);
     if (nextPractice) {
+      const whyText = `Apply your knowledge from completed lectures in this interactive practice lab before beginning the phase project.`;
       return {
         id: nextPractice.id,
+        targetId: nextPractice.id,
         title: nextPractice.title,
         type: 'Practice',
         phaseId: activePhase.id,
@@ -922,9 +947,13 @@ export function calculateNextBestAction(
         phaseTitle: activePhase.title,
         skill: nextPractice.skills[0] || 'Hands-on Coding',
         skillsCovered: nextPractice.skills,
+        skillsTargeted: nextPractice.skills,
         estimatedDuration: nextPractice.estimatedHours,
         durationHours: nextPractice.durationHours,
-        whyThisIsNext: `Apply your knowledge from completed lectures in this interactive practice lab before beginning the phase project.`,
+        difficulty: 'Intermediate',
+        description: nextPractice.description || 'Interactive hands-on coding lab.',
+        whyThisIsNext: whyText,
+        whyThisAction: whyText,
         matchPercentage: 92,
         status: 'unlocked',
         progress: 0,
@@ -935,8 +964,10 @@ export function calculateNextBestAction(
   // 5. Find first unlocked project
   const nextUnlockedProject = activePhase.projects.find((p) => p.status !== 'completed' && !p.isLocked);
   if (nextUnlockedProject) {
+    const whyText = `You have completed all prerequisite course modules for Phase ${activePhase.phaseNumber}. Build and submit this project deliverable to prove role competency.`;
     return {
       id: nextUnlockedProject.id,
+      targetId: nextUnlockedProject.id,
       title: nextUnlockedProject.title,
       type: 'Project',
       phaseId: activePhase.id,
@@ -944,9 +975,13 @@ export function calculateNextBestAction(
       phaseTitle: activePhase.title,
       skill: nextUnlockedProject.skillsCovered[0] || 'Portfolio Project',
       skillsCovered: nextUnlockedProject.skillsCovered,
+      skillsTargeted: nextUnlockedProject.skillsCovered,
       estimatedDuration: nextUnlockedProject.duration,
       durationHours: parseInt(nextUnlockedProject.duration) || 12,
-      whyThisIsNext: `You have completed all prerequisite course modules for Phase ${activePhase.phaseNumber}. Build and submit this project deliverable to prove role competency.`,
+      difficulty: nextUnlockedProject.difficulty || 'Intermediate',
+      description: nextUnlockedProject.description || 'Practical portfolio project milestone.',
+      whyThisIsNext: whyText,
+      whyThisAction: whyText,
       matchPercentage: 95,
       status: 'not_started',
       progress: 0,
@@ -956,8 +991,10 @@ export function calculateNextBestAction(
 
   // 6. Check if phase assessment is pending
   if (!activePhase.isAssessmentPassed && !activePhase.isAssessmentLocked) {
+    const whyText = `All curriculum items in Phase ${activePhase.phaseNumber} are complete. Pass this diagnostic assessment (>=70%) to unlock Phase ${activePhase.phaseNumber + 1}.`;
     return {
       id: activePhase.assessmentId || `assess-${activePhase.phaseNumber}`,
+      targetId: activePhase.assessmentId || `assess-${activePhase.phaseNumber}`,
       title: activePhase.assessmentRequired,
       type: 'Assessment',
       phaseId: activePhase.id,
@@ -965,9 +1002,13 @@ export function calculateNextBestAction(
       phaseTitle: activePhase.title,
       skill: activePhase.skills[0] || 'Comprehensive Diagnostic',
       skillsCovered: activePhase.skills,
+      skillsTargeted: activePhase.skills,
       estimatedDuration: '25 mins',
       durationHours: 0.5,
-      whyThisIsNext: `All curriculum items in Phase ${activePhase.phaseNumber} are complete. Pass this diagnostic assessment (>=70%) to unlock Phase ${activePhase.phaseNumber + 1}.`,
+      difficulty: 'Adaptive',
+      description: 'Phase benchmark diagnostic exam to verify competency mastery.',
+      whyThisIsNext: whyText,
+      whyThisAction: whyText,
       matchPercentage: 99,
       status: 'unlocked',
       progress: 0,
@@ -979,6 +1020,7 @@ export function calculateNextBestAction(
   if (topRec) {
     return {
       id: topRec.id,
+      targetId: topRec.id,
       title: topRec.title,
       type: topRec.type,
       phaseId: topRec.phaseId || activePhase.id,
@@ -986,9 +1028,13 @@ export function calculateNextBestAction(
       phaseTitle: activePhase.title,
       skill: topRec.skillsCovered[0] || 'Key Competency',
       skillsCovered: topRec.skillsCovered,
+      skillsTargeted: topRec.skillsCovered,
       estimatedDuration: topRec.estimatedDuration,
       durationHours: 8,
+      difficulty: topRec.difficulty || 'Intermediate',
+      description: topRec.description || 'Top ranked recommendation for your skill targets.',
       whyThisIsNext: topRec.whyRecommended,
+      whyThisAction: topRec.whyRecommended,
       matchPercentage: topRec.matchPercentage,
       status: topRec.status === 'in_progress' ? 'in_progress' : 'not_started',
       progress: 0,
@@ -997,8 +1043,10 @@ export function calculateNextBestAction(
   }
 
   // Final fallback
+  const fallbackWhy = 'Your Statistics foundation is sufficiently developed and Machine Learning is your highest-priority remaining skill gap.';
   return {
     id: 'c-201',
+    targetId: 'c-201',
     title: 'Applied Statistics & Probability for AI',
     type: 'Course',
     phaseId: 'phase-2',
@@ -1006,9 +1054,13 @@ export function calculateNextBestAction(
     phaseTitle: 'Data, Statistics & Probability',
     skill: 'Statistics & Probability',
     skillsCovered: ['Statistics & Probability', 'Hypothesis Testing'],
+    skillsTargeted: ['Statistics & Probability', 'Hypothesis Testing'],
     estimatedDuration: '8 hrs',
     durationHours: 8,
-    whyThisIsNext: 'Your Statistics foundation is sufficiently developed and Machine Learning is your highest-priority remaining skill gap.',
+    difficulty: 'Intermediate',
+    description: 'Master core statistical testing, probability distributions, and inferential methods.',
+    whyThisIsNext: fallbackWhy,
+    whyThisAction: fallbackWhy,
     matchPercentage: 96,
     status: 'in_progress',
     progress: 75,

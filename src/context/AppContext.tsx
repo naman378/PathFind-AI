@@ -3,6 +3,8 @@ import { User } from 'firebase/auth';
 import {
   PageType,
   LearnerProfile,
+  Skill,
+  SkillCategory,
   RoadmapPhase,
   Course,
   Project,
@@ -77,6 +79,7 @@ interface AppContextType {
   activities: ActivityLog[];
   addActivity: (activity: Omit<ActivityLog, 'id' | 'timestamp'>) => Promise<void>;
   chatMessages: ChatMessage[];
+  isAiThinking: boolean;
   sendChatMessage: (text: string) => Promise<void>;
   clearChat: () => Promise<void>;
   toasts: Toast[];
@@ -104,6 +107,85 @@ const createNewUserProfile = (user: User, name?: string): LearnerProfile => {
   };
 };
 
+// Helper to adapt and boost skills when courses, projects, or practice are completed
+function boostSkills(
+  currentSkills: Skill[] = [],
+  targetSkillNames: string[] = [],
+  delta: number = 12,
+  category: SkillCategory = 'Machine Learning'
+): Skill[] {
+  const updated = [...(currentSkills || [])];
+  const matchedNames = new Set<string>();
+
+  for (let i = 0; i < updated.length; i++) {
+    const s = updated[i];
+    const match = targetSkillNames.some(
+      (tsn) =>
+        tsn.toLowerCase().trim() === s.name.toLowerCase().trim() ||
+        s.name.toLowerCase().includes(tsn.toLowerCase().trim()) ||
+        tsn.toLowerCase().includes(s.name.toLowerCase().trim())
+    );
+    if (match) {
+      matchedNames.add(s.name.toLowerCase().trim());
+      updated[i] = {
+        ...s,
+        proficiency: Math.min(100, Math.max(0, s.proficiency + delta)),
+      };
+    }
+  }
+
+  // If there are skills not present in profile.skills, add them
+  for (const tsn of targetSkillNames) {
+    const norm = tsn.toLowerCase().trim();
+    if (!matchedNames.has(norm) && !updated.some((s) => s.name.toLowerCase().trim() === norm)) {
+      const initialProf = Math.min(100, Math.max(20, delta > 0 ? 55 + delta : 45));
+      updated.push({
+        id: `s-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+        name: tsn,
+        category,
+        proficiency: initialProf,
+        targetProficiency: 85,
+        priority: 'Medium',
+      });
+      matchedNames.add(norm);
+    }
+  }
+
+  return updated;
+}
+
+// Helper to calibrate skill proficiencies based on assessment performance
+function calibrateAssessmentSkills(
+  currentSkills: Skill[] = [],
+  strongSkillNames: string[] = [],
+  weakSkillNames: string[] = []
+): Skill[] {
+  let updated = [...(currentSkills || [])];
+  // Boost strong skills
+  if (strongSkillNames.length > 0) {
+    updated = boostSkills(updated, strongSkillNames, 15, 'Machine Learning');
+  }
+  // For weak skills where learner struggled or made errors:
+  for (let i = 0; i < updated.length; i++) {
+    const s = updated[i];
+    const isWeak = weakSkillNames.some(
+      (wsn) =>
+        wsn.toLowerCase().trim() === s.name.toLowerCase().trim() ||
+        s.name.toLowerCase().includes(wsn.toLowerCase().trim()) ||
+        wsn.toLowerCase().includes(s.name.toLowerCase().trim())
+    );
+    if (isWeak) {
+      // Calibrate proficiency slightly downwards or ensure it remains a clear gap
+      const calibratedProf = Math.min(s.proficiency, Math.max(25, s.proficiency - 10));
+      updated[i] = {
+        ...s,
+        proficiency: calibratedProf,
+      };
+    }
+  }
+  return updated;
+}
+
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentPage, setCurrentPage] = useState<PageType>('landing');
   const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
@@ -122,6 +204,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [assessmentResults, setAssessmentResults] = useState<AssessmentResult[]>([]);
   const [activities, setActivities] = useState<ActivityLog[]>([]);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>(initialChatMessages);
+  const [isAiThinking, setIsAiThinking] = useState<boolean>(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
 
   // Calculate dynamic Skill Gap Analysis strictly from actual learner skills vs career benchmark
@@ -454,31 +537,41 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return updatedPhase;
     });
 
-    const evaluated = evaluateRoadmapPrerequisites(newPhases, profile);
+    let currentProfState = profile;
+    if (isNowComplete && updatedTargetCourse) {
+      const courseTitle = (updatedTargetCourse as Course).title;
+      const skillsCovered = (updatedTargetCourse as Course).skillsCovered || [];
+      const updatedCompletedCourses = Array.from(new Set([...(profile.completedCourses || []), courseTitle]));
+      const updatedSkills = boostSkills(profile.skills || [], skillsCovered, 12, 'Foundation');
+      currentProfState = {
+        ...profile,
+        completedCourses: updatedCompletedCourses,
+        skills: updatedSkills,
+        lastActive: 'Today',
+      };
+      setProfile(currentProfState);
+    }
+
+    const evaluated = evaluateRoadmapPrerequisites(newPhases, currentProfState);
     setRoadmapPhases(evaluated);
 
     if (isNowComplete && updatedTargetCourse) {
       const courseTitle = (updatedTargetCourse as Course).title;
-      const updatedCompletedCourses = Array.from(new Set([...(profile.completedCourses || []), courseTitle]));
-      const updatedProfile = { ...profile, completedCourses: updatedCompletedCourses };
-      setProfile(updatedProfile);
-
       addActivity({
         type: 'course_progress',
         title: 'Course Completed! 🎉',
-        description: `Successfully completed "${courseTitle}". Next prerequisites unlocked!`,
+        description: `Successfully completed "${courseTitle}". Next prerequisites unlocked and skill proficiency boosted!`,
         iconType: 'course',
         phase: roadmapPhases.find((p) => p.id === phaseId)?.title,
       });
 
-      addToast(`Completed "${courseTitle}"! Prerequisites updated.`, 'success');
+      addToast(`Completed "${courseTitle}"! Prerequisites & skills updated.`, 'success');
 
       if (firebaseUser) {
-        firestoreService.saveUserProfile(firebaseUser.uid, updatedProfile).catch(console.warn);
+        firestoreService.saveUserProfile(firebaseUser.uid, currentProfState).catch(console.warn);
+        firestoreService.saveRoadmapPhases(firebaseUser.uid, evaluated).catch(console.warn);
       }
-    }
-
-    if (firebaseUser && targetPhaseObj) {
+    } else if (firebaseUser && targetPhaseObj) {
       firestoreService.updateRoadmapPhase(firebaseUser.uid, targetPhaseObj).catch(console.warn);
     }
   };
@@ -526,7 +619,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return updatedPhase;
     });
 
-    const evaluated = evaluateRoadmapPrerequisites(newPhases, profile);
+    let currentProfState = profile;
+    if (isNowComplete && targetProjectObj) {
+      const projTitle = (targetProjectObj as Project).title;
+      const skillsCovered = (targetProjectObj as Project).skillsCovered || [];
+      const updatedCompletedCourses = Array.from(new Set([...(profile.completedCourses || []), projTitle]));
+      const updatedSkills = boostSkills(profile.skills || [], skillsCovered, 18, 'Machine Learning');
+      currentProfState = {
+        ...profile,
+        completedCourses: updatedCompletedCourses,
+        skills: updatedSkills,
+        lastActive: 'Today',
+      };
+      setProfile(currentProfState);
+    }
+
+    const evaluated = evaluateRoadmapPrerequisites(newPhases, currentProfState);
     setRoadmapPhases(evaluated);
 
     if (isNowComplete && targetProjectObj) {
@@ -534,15 +642,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       addActivity({
         type: 'project_completed',
         title: 'Project Milestone Submitted! 🚀',
-        description: `Verified deliverable for "${projTitle}". Phase progress updated!`,
+        description: `Verified deliverable for "${projTitle}". Phase progress and competencies updated!`,
         iconType: 'project',
         phase: roadmapPhases.find((p) => p.id === phaseId)?.title,
       });
 
       addToast(`Project "${projTitle}" submitted and verified!`, 'success');
-    }
 
-    if (firebaseUser && targetPhaseObj) {
+      if (firebaseUser) {
+        firestoreService.saveUserProfile(firebaseUser.uid, currentProfState).catch(console.warn);
+        firestoreService.saveRoadmapPhases(firebaseUser.uid, evaluated).catch(console.warn);
+      }
+    } else if (firebaseUser && targetPhaseObj) {
       firestoreService.updateRoadmapPhase(firebaseUser.uid, targetPhaseObj).catch(console.warn);
     }
   };
@@ -553,6 +664,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const markPracticeCompleted = async (phaseId: string, practiceId: string) => {
     let targetPracticeTitle = 'Practice challenge';
+    let targetPracticeSkills: string[] = [];
     let targetPhaseObj: RoadmapPhase | null = null;
 
     const newPhases = roadmapPhases.map((phase) => {
@@ -561,6 +673,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const updatedPractice = (phase.practiceItems || []).map((pr) => {
         if (pr.id === practiceId) {
           targetPracticeTitle = pr.title;
+          targetPracticeSkills = pr.skills || [];
           return { ...pr, status: 'completed' as const, progress: 100 };
         }
         return pr;
@@ -582,7 +695,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return updatedPhase;
     });
 
-    const evaluated = evaluateRoadmapPrerequisites(newPhases, profile);
+    const updatedSkills = boostSkills(profile.skills || [], targetPracticeSkills, 8, 'Foundation');
+    const updatedProfile = {
+      ...profile,
+      skills: updatedSkills,
+      lastActive: 'Today',
+    };
+    setProfile(updatedProfile);
+
+    const evaluated = evaluateRoadmapPrerequisites(newPhases, updatedProfile);
     setRoadmapPhases(evaluated);
 
     addActivity({
@@ -593,10 +714,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       phase: roadmapPhases.find((p) => p.id === phaseId)?.title,
     });
 
-    addToast(`Completed "${targetPracticeTitle}"!`, 'success');
+    addToast(`Completed "${targetPracticeTitle}"! Skill rating updated.`, 'success');
 
-    if (firebaseUser && targetPhaseObj) {
-      firestoreService.updateRoadmapPhase(firebaseUser.uid, targetPhaseObj).catch(console.warn);
+    if (firebaseUser) {
+      firestoreService.saveUserProfile(firebaseUser.uid, updatedProfile).catch(console.warn);
+      firestoreService.saveRoadmapPhases(firebaseUser.uid, evaluated).catch(console.warn);
     }
   };
 
@@ -660,23 +782,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     );
 
     // Boost proficiency for skills covered
-    const updatedSkills = profile.skills.map((skill) => {
-      const isCovered = targetRec.skillsCovered.some(
-        (sc) => sc.toLowerCase().includes(skill.name.toLowerCase()) || skill.name.toLowerCase().includes(sc.toLowerCase())
-      );
-      if (isCovered) {
-        return {
-          ...skill,
-          proficiency: Math.min(100, skill.proficiency + 15),
-        };
-      }
-      return skill;
-    });
+    const updatedSkills = boostSkills(profile.skills || [], targetRec.skillsCovered || [], 15, 'Machine Learning');
 
     const updatedProfile: LearnerProfile = {
       ...profile,
       completedCourses: updatedCompletedCourses,
       skills: updatedSkills,
+      lastActive: 'Today',
     };
     setProfile(updatedProfile);
 
@@ -705,12 +817,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         status: newProgress === 100 ? ('completed' as const) : phase.status,
       };
     });
-    setRoadmapPhases(newPhases);
+
+    const evaluated = evaluateRoadmapPrerequisites(newPhases, updatedProfile);
+    setRoadmapPhases(evaluated);
 
     addActivity({
       type: targetRec.type === 'Project' ? 'project_completed' : 'course_progress',
       title: `Completed: ${targetRec.title} 🏆`,
-      description: `Completed ${targetRec.type}. Skill gaps updated automatically!`,
+      description: `Completed ${targetRec.type}. Skill gaps and roadmap updated automatically!`,
       iconType: targetRec.type === 'Project' ? 'project' : 'course',
     });
 
@@ -718,9 +832,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     if (firebaseUser) {
       try {
-        await firestoreService.saveUserProfile(firebaseUser.uid, updatedProfile);
+        await Promise.all([
+          firestoreService.saveUserProfile(firebaseUser.uid, updatedProfile),
+          firestoreService.saveRoadmapPhases(firebaseUser.uid, evaluated),
+        ]);
       } catch (e) {
-        console.warn('Error saving profile update in Firestore:', e);
+        console.warn('Error saving profile and phases update in Firestore:', e);
       }
     }
   };
@@ -754,6 +871,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     else if (score >= 75) masteryLevel = 'Proficient';
     else if (score >= 50) masteryLevel = 'Developing';
 
+    const strongList = Array.from(strongSet).length > 0 ? Array.from(strongSet) : ['General Logic'];
+    const weakList = Array.from(weakSet).length > 0 ? Array.from(weakSet) : ['None identified'];
+
     const result: AssessmentResult = {
       id: `res-${Date.now()}`,
       assessmentId,
@@ -764,54 +884,50 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       totalQuestions,
       correctCount,
       masteryLevel,
-      strongAreas: Array.from(strongSet).length > 0 ? Array.from(strongSet) : ['General Logic'],
-      weakAreas: Array.from(weakSet).length > 0 ? Array.from(weakSet) : ['None identified'],
+      strongAreas: strongList,
+      weakAreas: weakList,
       recommendedNextAction: passed
         ? 'Great mastery! Proceed to unlock next roadmap phase.'
-        : 'Review key concept modules and retry when ready.',
+        : `Review ${weakList.slice(0, 2).join(' & ')} modules and retry diagnostic when ready.`,
     };
 
     setAssessmentResults((prev) => [result, ...prev]);
 
-    // If passed, update phase assessment status
+    const calibratedSkills = calibrateAssessmentSkills(profile.skills || [], strongList, passed ? [] : weakList);
+    const updatedProf: LearnerProfile = {
+      ...profile,
+      skills: calibratedSkills,
+      lastActive: 'Today',
+    };
+    setProfile(updatedProf);
+
+    // If passed, update phase assessment status and unlock next phase
+    let updatedPhases = roadmapPhases;
     if (passed) {
-      const updatedPhases = roadmapPhases.map((p) =>
+      updatedPhases = roadmapPhases.map((p) =>
         p.id === module.phaseId ? { ...p, isAssessmentPassed: true } : p
       );
-      setRoadmapPhases(updatedPhases);
-
-      const updatedSkills = profile.skills.map((s) =>
-        s.id === 's4' ? { ...s, proficiency: Math.min(100, s.proficiency + 15) } : s
-      );
-      const updatedProf = { ...profile, skills: updatedSkills };
-      setProfile(updatedProf);
-
-      if (firebaseUser) {
-        try {
-          await firestoreService.saveUserProfile(firebaseUser.uid, updatedProf);
-          const targetP = updatedPhases.find((p) => p.id === module.phaseId);
-          if (targetP) {
-            await firestoreService.updateRoadmapPhase(firebaseUser.uid, targetP);
-          }
-        } catch (e) {
-          console.warn('Error saving passed assessment state to Firestore:', e);
-        }
-      }
     }
+    const evaluated = evaluateRoadmapPrerequisites(updatedPhases, updatedProf);
+    setRoadmapPhases(evaluated);
 
     addActivity({
       type: 'assessment_passed',
       title: `Assessment Completed: ${module.title} (${score}%)`,
-      description: passed ? 'Assessment passed! Skill rating adjusted.' : 'Assessment finished. Areas of improvement identified.',
+      description: passed ? 'Assessment passed! Skill rating adjusted and roadmap phase unlocked.' : 'Assessment finished. Areas of improvement identified for targeted practice.',
       iconType: 'assessment',
       phase: module.phaseName,
     });
 
     if (firebaseUser) {
       try {
-        await firestoreService.saveAssessmentResult(firebaseUser.uid, result);
+        await Promise.all([
+          firestoreService.saveUserProfile(firebaseUser.uid, updatedProf),
+          firestoreService.saveRoadmapPhases(firebaseUser.uid, evaluated),
+          firestoreService.saveAssessmentResult(firebaseUser.uid, result),
+        ]);
       } catch (e) {
-        console.warn('Error saving assessment result to Firestore:', e);
+        console.warn('Error saving assessment state to Firestore:', e);
       }
     }
 
@@ -827,47 +943,119 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
 
     setChatMessages((prev) => [...prev, userMsg]);
+    setIsAiThinking(true);
 
     if (firebaseUser) {
-      firestoreService.addChatMessage(firebaseUser.uid, userMsg);
+      firestoreService.addChatMessage(firebaseUser.uid, userMsg).catch(console.warn);
     }
 
-    // Generate smart response from knowledge base
-    setTimeout(async () => {
-      const lower = text.toLowerCase().trim();
-      let matchedResponse: { text: string; action?: { label: string; page: any } } | undefined;
+    try {
+      // Find currently active phase
+      const currentActivePhase =
+        evaluatedRoadmapPhases.find((p) => p.id === activePhaseId) ||
+        evaluatedRoadmapPhases.find((p) => p.status === 'in_progress') ||
+        evaluatedRoadmapPhases[0];
 
-      for (const [key, res] of Object.entries(demoAIResponses)) {
-        if (lower.includes(key) || key.includes(lower) || lower.split(' ').some((word) => word.length > 3 && key.includes(word))) {
-          matchedResponse = res;
-          break;
-        }
-      }
+      const top3Gaps = Array.isArray(skillGapAnalysis?.top3SkillsToImprove)
+        ? skillGapAnalysis.top3SkillsToImprove
+        : [];
 
-      if (!matchedResponse) {
-        if (lower.includes('next') || lower.includes('recommend')) {
-          matchedResponse = demoAIResponses['what should i learn next?'];
-        } else if (lower.includes('stat') || lower.includes('math') || lower.includes('probabilit')) {
-          matchedResponse = demoAIResponses['why should i learn statistics before machine learning?'];
-        } else if (lower.includes('overfit') || lower.includes('underfit') || lower.includes('generaliz')) {
-          matchedResponse = demoAIResponses['explain overfitting simply.'];
-        } else if (lower.includes('regress') || lower.includes('linear') || lower.includes('model')) {
-          matchedResponse = demoAIResponses["i'm struggling with regression."];
-        } else {
-          matchedResponse = {
-            text: `I've analyzed your profile and current roadmap (${profile.careerGoal} track).\n\n* **Current Phase:** ${roadmapPhases.find((p) => p.status === 'in_progress')?.title || 'Foundation Phase'}\n* **Immediate Priority:** Strengthen your ${profile.skills.find((s) => s.priority === 'High')?.name || 'Core Skills'} proficiency.\n* **Suggested Next Step:** Spend 45 minutes on your next prescribed learning item or take an assessment to benchmark your score.\n\nIs there a specific machine learning algorithm or concept you'd like me to break down?`,
-            action: {
-              label: 'View Learning Roadmap',
-              page: 'learning-path',
-            },
-          };
-        }
+      // Prepare authenticated context for Gemini AI
+      const contextPayload = {
+        learnerProfile: profile,
+        skillGapAnalysis: {
+          overallReadinessScore: skillGapAnalysis?.overallReadinessScore ?? 0,
+          masteredCount: skillGapAnalysis?.masteredCount ?? skillGapAnalysis?.masteredSkills?.length ?? 0,
+          developingCount: skillGapAnalysis?.developingCount ?? skillGapAnalysis?.developingSkills?.length ?? 0,
+          gapCount: skillGapAnalysis?.gapCount ?? skillGapAnalysis?.gapSkills?.length ?? 0,
+          top3SkillsToImprove: top3Gaps.map((item) => ({
+            name: item?.name || 'Skill',
+            currentProficiency: item?.currentProficiency ?? 0,
+            requiredProficiency: item?.requiredProficiency ?? 80,
+            priority: item?.priority || 'High',
+            reason: item?.reason || 'Core competency benchmark',
+          })),
+        },
+        activePhase: currentActivePhase
+          ? {
+              phaseNumber: currentActivePhase.phaseNumber,
+              title: currentActivePhase.title,
+              progress: currentActivePhase.progress,
+              skills: currentActivePhase.skills || [],
+              whyThisPhase: currentActivePhase.whyThisPhase || '',
+              isAssessmentPassed: Boolean(currentActivePhase.isAssessmentPassed),
+            }
+          : undefined,
+        nextBestAction: nextBestAction
+          ? {
+              title: nextBestAction.title,
+              type: nextBestAction.type,
+              phaseNumber: nextBestAction.phaseNumber,
+              whyThisAction: nextBestAction.whyThisAction,
+              skillsTargeted: nextBestAction.skillsTargeted || [],
+            }
+          : undefined,
+        recommendations: (recommendations || []).slice(0, 5).map((r) => ({
+          title: r.title,
+          type: r.type,
+          matchPercentage: r.matchPercentage,
+          difficulty: r.difficulty,
+          whyRecommended: r.whyRecommended,
+        })),
+        overallProgress: calculateOverallProgress(),
+      };
+
+      // Call server-side Gemini API endpoint
+      const response = await fetch('/api/gemini/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: text,
+          history: (chatMessages || []).slice(-6).map((m) => ({
+            sender: m.sender,
+            text: m.text,
+          })),
+          context: contextPayload,
+        }),
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok || data.success === false) {
+        throw new Error(data.error || `Server responded with status ${response.status}`);
       }
 
       const assistantMsg: ChatMessage = {
         id: `msg-${Date.now() + 1}`,
         sender: 'assistant',
-        text: matchedResponse.text,
+        text: data.text || 'I have analyzed your request based on your current learning roadmap.',
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        suggestedFollowUps:
+          Array.isArray(data.suggestedFollowUps) && data.suggestedFollowUps.length > 0
+            ? data.suggestedFollowUps
+            : [
+                'What should I learn next?',
+                'Why should I learn statistics before machine learning?',
+                'Explain overfitting simply.',
+                "I'm struggling with regression.",
+              ],
+        relatedAction: data.action,
+      };
+
+      setChatMessages((prev) => [...prev, assistantMsg]);
+
+      if (firebaseUser) {
+        firestoreService.addChatMessage(firebaseUser.uid, assistantMsg).catch(console.warn);
+      }
+    } catch (err: any) {
+      console.error('Gemini AI Assistant request failed:', err);
+
+      const errorAssistantMsg: ChatMessage = {
+        id: `msg-${Date.now() + 1}`,
+        sender: 'assistant',
+        text: 'AI Assistant is temporarily unavailable. Please try again.',
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         suggestedFollowUps: [
           'What should I learn next?',
@@ -875,15 +1063,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           'Explain overfitting simply.',
           "I'm struggling with regression.",
         ],
-        relatedAction: matchedResponse.action,
+        isError: true,
+        retryPrompt: text,
       };
 
-      setChatMessages((prev) => [...prev, assistantMsg]);
+      setChatMessages((prev) => [...prev, errorAssistantMsg]);
 
       if (firebaseUser) {
-        firestoreService.addChatMessage(firebaseUser.uid, assistantMsg);
+        firestoreService.addChatMessage(firebaseUser.uid, errorAssistantMsg).catch(console.warn);
       }
-    }, 600);
+    } finally {
+      setIsAiThinking(false);
+    }
   };
 
   const clearChat = async () => {
@@ -966,6 +1157,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         activities,
         addActivity,
         chatMessages,
+        isAiThinking,
         sendChatMessage,
         clearChat,
         toasts,

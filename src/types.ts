@@ -52,6 +52,9 @@ export interface SkillGapAnalysisResult {
   gapSkills: SkillGapItem[];
   missingSkills: SkillGapItem[];
   overallReadinessScore: number; // 0-100
+  masteredCount?: number;
+  developingCount?: number;
+  gapCount?: number;
 }
 
 export interface LearnerProfile {
@@ -176,6 +179,7 @@ export interface LearningPathItem {
 
 export interface NextBestAction {
   id: string;
+  targetId?: string;
   title: string;
   type: 'Course' | 'Project' | 'Practice' | 'Assessment';
   phaseId: string;
@@ -183,9 +187,13 @@ export interface NextBestAction {
   phaseTitle: string;
   skill: string;
   skillsCovered: string[];
+  skillsTargeted?: string[];
   estimatedDuration: string;
   durationHours: number;
+  difficulty?: 'Beginner' | 'Intermediate' | 'Advanced' | string;
+  description?: string;
   whyThisIsNext: string;
+  whyThisAction?: string;
   matchPercentage: number;
   status: 'not_started' | 'in_progress' | 'unlocked';
   progress: number;
@@ -296,4 +304,6 @@ export interface ChatMessage {
     label: string;
     page: PageType;
   };
+  isError?: boolean;
+  retryPrompt?: string;
 }

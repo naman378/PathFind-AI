@@ -37,7 +37,7 @@ export const LearningPathPage: React.FC = () => {
     overallProgress,
   } = useApp();
 
-  const [selectedPhaseModal, setSelectedPhaseModal] = useState<RoadmapPhase | null>(null);
+  const [selectedPhaseModalId, setSelectedPhaseModalId] = useState<string | null>(null);
 
   const fallbackPhase: RoadmapPhase = {
     id: 'phase-1',
@@ -61,6 +61,10 @@ export const LearningPathPage: React.FC = () => {
     projects: [],
   };
 
+  const selectedPhaseModal = selectedPhaseModalId
+    ? (roadmapPhases || []).find((p) => p.id === selectedPhaseModalId) || null
+    : null;
+
   const activePhase =
     (roadmapPhases || []).find((p) => p.id === activePhaseId) ||
     (roadmapPhases || []).find((p) => p.status === 'in_progress') ||
@@ -71,7 +75,7 @@ export const LearningPathPage: React.FC = () => {
     setActivePhaseId(phaseId);
     const found = (roadmapPhases || []).find((p) => p.id === phaseId);
     if (found && !found.isLocked) {
-      setSelectedPhaseModal(found);
+      setSelectedPhaseModalId(found.id);
     }
   };
 
@@ -257,7 +261,7 @@ export const LearningPathPage: React.FC = () => {
               variant="gradient"
               size="md"
               className="w-full"
-              onClick={() => setSelectedPhaseModal(activePhase)}
+              onClick={() => setSelectedPhaseModalId(activePhase.id)}
               rightIcon={<ArrowRight className="w-4 h-4" />}
             >
               Open Phase Workspace
@@ -270,7 +274,7 @@ export const LearningPathPage: React.FC = () => {
       {selectedPhaseModal && (
         <Modal
           isOpen={!!selectedPhaseModal}
-          onClose={() => setSelectedPhaseModal(null)}
+          onClose={() => setSelectedPhaseModalId(null)}
           title={`Phase ${selectedPhaseModal.phaseNumber}: ${selectedPhaseModal.title}`}
           subtitle={`Estimated Duration: ${selectedPhaseModal.estimatedDuration} • Progress: ${selectedPhaseModal.progress}%`}
           maxWidth="2xl"
@@ -423,7 +427,7 @@ export const LearningPathPage: React.FC = () => {
                 variant={selectedPhaseModal.isAssessmentPassed ? 'secondary' : 'gradient'}
                 size="sm"
                 onClick={() => {
-                  setSelectedPhaseModal(null);
+                  setSelectedPhaseModalId(null);
                   setCurrentPage('assessments');
                 }}
               >

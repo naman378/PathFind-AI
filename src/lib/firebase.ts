@@ -1,6 +1,7 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
+import { getStorage } from 'firebase/storage';
 import firebaseConfigData from '../../firebase-applet-config.json';
 
 export const firebaseConfig = {
@@ -25,3 +26,7 @@ const databaseId = firebaseConfigData.firestoreDatabaseId && firebaseConfigData.
   : undefined;
 
 export const db = databaseId ? getFirestore(app, databaseId) : getFirestore(app);
+
+// Initialize Firebase Storage if bucket is configured
+export const storage = firebaseConfigData.storageBucket ? getStorage(app) : null;
+

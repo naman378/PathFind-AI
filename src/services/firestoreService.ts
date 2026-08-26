@@ -58,29 +58,29 @@ export const firestoreService = {
           id: data.id || userId,
           name: data.name || 'Learner',
           email: data.email || '',
+          avatarUrl: data.avatarUrl,
+          education: data.education || 'Self-Taught / Degree',
           careerGoal: data.careerGoal || 'AI Engineer',
+          targetRole: data.targetRole || data.careerGoal || 'AI Engineer',
           experienceLevel: data.experienceLevel || 'Intermediate',
-          learningStyle: data.learningStyle || 'Hands-on Projects',
-          weeklyHours: typeof data.weeklyHours === 'number' ? data.weeklyHours : 6,
-          preferredDifficulty: data.preferredDifficulty || 'Adaptive',
-          streakDays: typeof data.streakDays === 'number' ? data.streakDays : 1,
-          completedCourses: Array.isArray(data.completedCourses) ? data.completedCourses : [],
           interests: Array.isArray(data.interests) ? data.interests : ['Machine Learning', 'Deep Learning'],
           skills: Array.isArray(data.skills)
             ? data.skills.map((s) => ({
                 id: s.id,
                 name: s.name,
-                category: s.category || 'General',
+                category: (s.category as any) || 'Foundation',
                 proficiency: typeof s.proficiency === 'number' ? s.proficiency : 50,
                 targetProficiency: typeof s.targetProficiency === 'number' ? s.targetProficiency : 80,
-                status: s.status || 'needs_practice',
-                priority: s.priority || 'medium',
-                reason: s.reason,
+                priority: (s.priority as any) || 'Medium',
               }))
             : [],
-          avatarUrl: data.avatarUrl,
-          joinedDate: data.joinedDate || 'Recently',
+          completedCourses: Array.isArray(data.completedCourses) ? data.completedCourses : [],
+          weeklyHours: typeof data.weeklyHours === 'number' ? data.weeklyHours : 6,
+          preferredLearningStyle: data.preferredLearningStyle || 'Hands-on Projects',
+          preferredDifficulty: data.preferredDifficulty || 'Adaptive',
+          streakDays: typeof data.streakDays === 'number' ? data.streakDays : 1,
           lastActive: data.lastActive || 'Today',
+          joinedDate: data.joinedDate || 'Recently',
         };
       }
       return null;
@@ -133,7 +133,6 @@ export const firestoreService = {
             isMilestoneCompleted: Boolean(p.isMilestoneCompleted),
             isMilestoneLocked: Boolean(p.isMilestoneLocked),
             milestoneLockReason: p.milestoneLockReason,
-            isLocked: Boolean(p.isLocked),
             lockReason: p.lockReason,
             courses: Array.isArray(p.courses)
               ? p.courses.map((c, cIdx) => ({
@@ -151,7 +150,6 @@ export const firestoreService = {
                   resourceReference: c.resourceReference,
                   isLocked: Boolean(c.isLocked),
                   lockReason: c.lockReason,
-                  isElective: Boolean(c.isElective),
                 }))
               : [],
             practiceItems: Array.isArray(p.practiceItems)

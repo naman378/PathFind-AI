@@ -77,14 +77,21 @@ export const DashboardPage: React.FC = () => {
       setCurrentPage('learning-path');
       return;
     }
+    const actionId = nextBestAction.targetId || nextBestAction.id;
     if (nextBestAction.type === 'Assessment') {
       setCurrentPage('assessments');
     } else if (nextBestAction.type === 'Practice' || nextBestAction.type === 'Project') {
       setActivePhaseId(nextBestAction.phaseId);
       setCurrentPage('learning-path');
+    } else if (nextBestAction.type === 'Course') {
+      setActivePhaseId(nextBestAction.phaseId);
+      if (actionId) {
+        startRecommendation(actionId);
+      }
+      setCurrentPage('learning-path');
     } else {
-      if (nextBestAction.targetId) {
-        startRecommendation(nextBestAction.targetId);
+      if (actionId) {
+        startRecommendation(actionId);
       }
       setCurrentPage('recommendations');
     }
@@ -92,12 +99,13 @@ export const DashboardPage: React.FC = () => {
 
   const handleCompleteNextAction = () => {
     if (!nextBestAction) return;
+    const actionId = nextBestAction.targetId || nextBestAction.id;
     if (nextBestAction.type === 'Course') {
-      markCourseCompleted(nextBestAction.phaseId, nextBestAction.targetId);
+      markCourseCompleted(nextBestAction.phaseId, actionId);
     } else if (nextBestAction.type === 'Project') {
-      markProjectCompleted(nextBestAction.phaseId, nextBestAction.targetId);
+      markProjectCompleted(nextBestAction.phaseId, actionId);
     } else if (nextBestAction.type === 'Practice') {
-      markPracticeCompleted(nextBestAction.phaseId, nextBestAction.targetId);
+      markPracticeCompleted(nextBestAction.phaseId, actionId);
     } else if (nextBestAction.type === 'Assessment') {
       setCurrentPage('assessments');
     }

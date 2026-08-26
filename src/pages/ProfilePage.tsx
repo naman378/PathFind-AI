@@ -4,6 +4,8 @@ import { Card } from '../components/common/Card';
 import { Button } from '../components/common/Button';
 import { Badge } from '../components/common/Badge';
 import { SkillBar } from '../components/common/SkillBar';
+import { UserAvatar } from '../components/common/UserAvatar';
+import { uploadUserAvatar } from '../services/avatarStorageService';
 import { ExperienceLevel, LearningStyle, PreferredDifficulty } from '../types';
 import {
   User,
@@ -18,12 +20,15 @@ import {
   CheckCircle2,
   Sliders,
   Award,
+  Camera,
+  Trash2,
 } from 'lucide-react';
 
 export const ProfilePage: React.FC = () => {
-  const { profile, updateProfile, updateSkillProficiency, addToast, setCurrentPage } = useApp();
+  const { profile, updateProfile, updateSkillProficiency, addToast, setCurrentPage, firebaseUser } = useApp();
 
   const [isEditing, setIsEditing] = useState(false);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [name, setName] = useState(profile.name);
   const [education, setEducation] = useState(profile.education);
   const [careerGoal, setCareerGoal] = useState(profile.careerGoal);
@@ -31,6 +36,35 @@ export const ProfilePage: React.FC = () => {
   const [weeklyHours, setWeeklyHours] = useState(profile.weeklyHours);
   const [preferredLearningStyle, setPreferredLearningStyle] = useState<LearningStyle>(profile.preferredLearningStyle);
   const [preferredDifficulty, setPreferredDifficulty] = useState<PreferredDifficulty>(profile.preferredDifficulty);
+
+  const handlePhotoUpload = async (file: File) => {
+    setIsUploadingPhoto(true);
+    try {
+      const userId = firebaseUser?.uid || profile.id || 'current-user';
+      const uploadedUrl = await uploadUserAvatar(userId, file);
+      await updateProfile({ avatarUrl: uploadedUrl });
+      addToast('Profile picture updated successfully!', 'success');
+    } catch (error: any) {
+      console.error('Failed to upload profile picture:', error);
+      addToast(error?.message || 'Could not upload profile picture. Please try another image.', 'error');
+    } finally {
+      setIsUploadingPhoto(false);
+    }
+  };
+
+  const handleRemoveCustomPhoto = async () => {
+    try {
+      await updateProfile({ avatarUrl: '' });
+      if (firebaseUser?.photoURL) {
+        addToast('Custom photo removed. Restored Google profile photo.', 'info');
+      } else {
+        addToast('Profile photo removed. Initial avatar restored.', 'info');
+      }
+    } catch (error) {
+      console.error('Error removing custom photo:', error);
+      addToast('Could not remove photo.', 'error');
+    }
+  };
 
   const handleSave = () => {
     updateProfile({
@@ -62,8 +96,16 @@ export const ProfilePage: React.FC = () => {
       <Card variant="glow" className="p-6 sm:p-8 border-indigo-500/30">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5 pb-6 border-b border-slate-800">
           <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-purple-600 flex items-center justify-center font-extrabold text-2xl text-white shadow-xl shadow-indigo-500/25 border border-indigo-400/40">
-              {profile.name.charAt(0)}
+            <div className="group relative">
+              <UserAvatar
+                name={profile.name}
+                avatarUrl={profile.avatarUrl}
+                googlePhotoUrl={firebaseUser?.photoURL}
+                size="lg"
+                isEditable={true}
+                isUploading={isUploadingPhoto}
+                onFileSelect={handlePhotoUpload}
+              />
             </div>
 
             <div>
@@ -73,11 +115,30 @@ export const ProfilePage: React.FC = () => {
                   {profile.experienceLevel}
                 </Badge>
               </div>
-              <p className="text-xs text-slate-400 mt-0.5">{profile.email}</p>
+              <p className="text-xs text-slate-400 mt-0.5">{profile.email || firebaseUser?.email}</p>
               <p className="text-xs text-indigo-300 font-medium mt-1 flex items-center gap-1.5">
                 <GraduationCap className="w-4 h-4" />
                 {profile.education}
               </p>
+
+              {/* Photo Status / Actions */}
+              <div className="flex items-center gap-3 mt-1.5">
+                {profile.avatarUrl && (
+                  <button
+                    type="button"
+                    onClick={handleRemoveCustomPhoto}
+                    className="text-[11px] text-slate-400 hover:text-rose-400 flex items-center gap-1 transition-colors cursor-pointer"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                    <span>Remove custom photo</span>
+                  </button>
+                )}
+                {!profile.avatarUrl && firebaseUser?.photoURL && (
+                  <span className="text-[10px] text-indigo-400 font-medium">
+                    Google account photo active
+                  </span>
+                )}
+              </div>
             </div>
           </div>
 
@@ -101,6 +162,7 @@ export const ProfilePage: React.FC = () => {
             </Button>
           </div>
         </div>
+
 
         {/* Quick Highlights Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-6 text-xs">

@@ -2,6 +2,7 @@ import React from 'react';
 import { useApp } from '../../context/AppContext';
 import { PageType } from '../../types';
 import { PathFindLogo } from './PathFindLogo';
+import { UserAvatar } from './UserAvatar';
 import {
   LayoutDashboard,
   Route,
@@ -24,7 +25,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   mobileOpen = false,
   onCloseMobile,
 }) => {
-  const { currentPage, setCurrentPage, profile, overallProgress, signOutUser, isCloudSynced } = useApp();
+  const { currentPage, setCurrentPage, profile, overallProgress, signOutUser, isCloudSynced, firebaseUser } = useApp();
 
   const navigationItems: { id: PageType; label: string; icon: React.FC<{ className?: string }> }[] = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -132,9 +133,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <div className="p-4 border-t border-slate-800/80 space-y-3 bg-[#060a14]/60">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center font-bold text-white text-xs border border-indigo-300/30">
-                {profile.name.charAt(0)}
-              </div>
+              <UserAvatar
+                name={profile.name}
+                avatarUrl={profile.avatarUrl}
+                googlePhotoUrl={firebaseUser?.photoURL}
+                size="md"
+              />
               <div className="overflow-hidden">
                 <div className="flex items-center gap-1.5">
                   <p className="text-xs font-semibold text-white truncate">{profile.name}</p>

@@ -25,6 +25,13 @@ const AppContent: React.FC = () => {
   const { currentPage, setCurrentPage, isLoggedIn, isAuthLoading, firebaseUser } = useApp();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  // Safely redirect logged-in users away from auth pages in an effect
+  React.useEffect(() => {
+    if (isLoggedIn && (currentPage === 'login' || currentPage === 'signup')) {
+      setCurrentPage('dashboard');
+    }
+  }, [isLoggedIn, currentPage, setCurrentPage]);
+
   // Initial Auth Loading Screen
   if (isAuthLoading) {
     return (
@@ -64,10 +71,6 @@ const AppContent: React.FC = () => {
 
   // Auth Pages
   if (currentPage === 'login' || currentPage === 'signup') {
-    if (isLoggedIn) {
-      // If already logged in, navigate straight to dashboard
-      setCurrentPage('dashboard');
-    }
     return (
       <div className="min-h-screen bg-[#070b14]">
         <AuthPage initialMode={currentPage === 'login' ? 'login' : 'signup'} />

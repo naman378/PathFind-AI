@@ -61,8 +61,8 @@ export const AssessmentsPage: React.FC = () => {
     }
   };
 
-  const handleSubmitQuiz = () => {
-    const res = submitAssessment(activeModule.id, userAnswers);
+  const handleSubmitQuiz = async () => {
+    const res = await submitAssessment(activeModule.id, userAnswers);
     setCurrentResult(res);
     setIsTestActive(false);
 
